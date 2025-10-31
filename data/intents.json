@@ -1,0 +1,14 @@
+{
+  "intents": [
+    {
+      "name": "handgepaeck",
+      "threshold": 70,
+      "patterns": ["Was darf ins Handgepäck", "Handgepäck Regeln", "Tipps fürs Handgepäck"],
+      "reply_variants": [
+        "Kurz: Flüssigkeiten ≤ 100 ml im 1-Liter-Beutel, keine spitzen Gegenstände, Powerbanks ins Handgepäck.",
+        "In Kürze: 100-ml-Regel, Messer/Scheren tabu, Akkus gehören ins Handgepäck."
+      ],
+      "notes": ["Airline-Abweichungen möglich; vor Abflug prüfen."]
+    }
+  ]
+}

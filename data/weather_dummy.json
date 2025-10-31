@@ -1,0 +1,11 @@
+{
+  "Berlin": { "monthly": {
+    "01": {"tmin": -1, "tmax": 3,  "rain": 0.50},
+    "06": {"tmin": 15, "tmax": 23, "rain": 0.45},
+    "12": {"tmin": 1,  "tmax": 4,  "rain": 0.50}
+  }},
+  "Barcelona": { "monthly": {
+    "06": {"tmin": 20, "tmax": 26, "rain": 0.20},
+    "07": {"tmin": 23, "tmax": 29, "rain": 0.15}
+  }}
+}
