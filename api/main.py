@@ -5,8 +5,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from dateutil.parser import isoparse
 from rapidfuzz import fuzz
-from api.loader import load_json
-from api.rules import weather_to_bucket, quantities, activity_items
+from loader import load_json
+from rules import weather_to_bucket, quantities, activity_items
 
 app = FastAPI(title="Smart Packing Assistant API", version="0.2.0")
 WEATHER_URL = os.getenv("WEATHER_URL", "http://127.0.0.1:8090")
@@ -119,3 +119,27 @@ async def packlist(req: PackReq):
     return {"city": req.city, "days": days, "profile": req.profile,
             "weather": {"bucket": bucket, "avg_tmax": avg_tmax, "rain_prob": rain},
             "items": items, "uncertainty": uncertainty}
+
+
+@app.get("/v1/packlist")
+async def packlist_get(
+        city: str,
+        start: str,
+        end: str,
+        activities: str = "",
+        profile: str = "minimal",
+):
+    # activities="hiking,swim" -> ["hiking","swim"]
+    req = PackReq(
+        city=city,
+        start=start,
+        end=end,
+        activities=[a for a in activities.split(",") if a],
+        profile=profile,
+    )
+    return await packlist(req)
+
+
+@app.get("/v1/chat")
+def chat_get(message: str, profile: str = "minimal"):
+    return chat(ChatIn(message=message, profile=profile))
