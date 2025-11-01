@@ -1,14 +1,20 @@
 services:
   weather:
-    build: { context: ., dockerfile: weather/Dockerfile }
-    volumes: [ "./data:/data:ro" ]
-    ports: [ "8090:8090" ]
+    build:
+      context: .
+      dockerfile: weather/Dockerfile
+    volumes:
+      - ./data:/data:ro
+    ports:
+      - "8090:8090"
 
   api:
-    build: { context: ., dockerfile: api/Dockerfile }
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     environment:
-      WEATHER_URL: http://weather:8090   # Service-Name im Compose-Netz
-      DATA_DIR: /data
-    volumes: [ "./data:/data:ro" ]
-    depends_on: [ weather ]
-    ports: [ "8081:8080" ]               # host:container -> 8081 frei bei dir
+      WEATHER_URL: "http://weather:8090"
+    depends_on:
+      - weather
+    ports:
+      - "8083:8080"
