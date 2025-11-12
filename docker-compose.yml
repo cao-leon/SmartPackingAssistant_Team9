@@ -14,6 +14,7 @@ services:
       dockerfile: api/Dockerfile
     environment:
       WEATHER_URL: "http://weather:8090"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     depends_on:
       - weather
     ports:

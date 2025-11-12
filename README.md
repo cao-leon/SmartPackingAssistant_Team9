@@ -104,6 +104,19 @@ Optional: LLM-Chatbot (z. B. OpenAI/Gemini) ist als Zusatz denkbar für kontextr
 Starten
 # Im Projekt-Root
 docker compose up -d --build
+
+docker compose down 
+
+docker build -t spa/weather:latest -f weather/Dockerfile .
+
+docker build -t spa/api:latest     -f api/Dockerfile .
+
+kind load docker-image spa/weather:latest
+kind load docker-image spa/api:latest
+kubectl apply -f k8s/namespace.yaml
+kubectl create configmap spa-weather-data \
+  --from-file=data/weather_dummy.json \
+  -n spa
 # Status prüfen
 docker compose ps
 

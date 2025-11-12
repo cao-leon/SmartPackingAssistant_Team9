@@ -1,8 +1,10 @@
 FROM python:3.11-slim
 WORKDIR /app
-COPY weather/requirements.txt ./requirements.txt
+
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY weather/ .
-ENV WEATHER_DATA_PATH=/data/weather_dummy.json
+
+COPY . .
+
 EXPOSE 8090
-CMD ["uvicorn","weather_mock:app","--host","0.0.0.0","--port","8090","--http","h11"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8090"]
