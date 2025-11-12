@@ -10,15 +10,38 @@ from rules import weather_to_bucket, quantities, activity_items
 from ai_service import generate_chat_response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import os
+from fastapi.middleware.cors import CORSMiddleware
 
+# --------------------------------------------------
+# ✅ App-Konfiguration
+# --------------------------------------------------
 app = FastAPI(title="Smart Packing Assistant API", version="0.2.0")
+
+# ✅ CORS aktivieren (Frontend darf auf API zugreifen)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # in Produktion: auf Domain einschränken
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Wetter-Service URL
 WEATHER_URL = os.getenv("WEATHER_URL", "http://127.0.0.1:8090")
 
-# JSON-Daten laden
+# --------------------------------------------------
+# 📦 JSON-Daten laden
+# --------------------------------------------------
 INTENTS = load_json("intents.json", required=False) or {"intents": []}
-PROFILES = load_json("profiles.json", required=False) or {"minimal": 1.0, "komfort": 1.2, "familie": 1.4}
+PROFILES = load_json("profiles.json", required=False) or {
+    "minimal": 1.0,
+    "komfort": 1.2,
+    "familie": 1.4,
+}
 
+# --------------------------------------------------
+# 📄 Datenmodelle
+# --------------------------------------------------
 class PackReq(BaseModel):
     city: str
     start: str
@@ -30,31 +53,41 @@ class ChatIn(BaseModel):
     message: str
     profile: Optional[str] = "minimal"
 
+# --------------------------------------------------
+# 🩺 Healthcheck
+# --------------------------------------------------
 @app.get("/health")
 def health():
     return {"ok": True, "service": "api"}
 
-
-# -------------------------
-# ✅ NEUE KI CHAT LOGIK
-# -------------------------
+# --------------------------------------------------
+# 💬 Chat-Endpunkt
+# --------------------------------------------------
 @app.post("/v1/chat")
 async def chat(inp: ChatIn):
     reply = await generate_chat_response(inp.message, inp.profile)
     return {"reply": reply}
 
-
+# --------------------------------------------------
+# 🌦️ Wetter abrufen
+# --------------------------------------------------
 async def fetch_weather(city: str, start: str, end: str):
     async with httpx.AsyncClient(timeout=3.0) as c:
-        r = await c.get(f"{WEATHER_URL}/v1/weather", params={"city": city, "start": start, "end": end})
+        r = await c.get(
+            f"{WEATHER_URL}/v1/weather",
+            params={"city": city, "start": start, "end": end},
+        )
         r.raise_for_status()
         return r.json()
 
-
+# --------------------------------------------------
+# 🎒 Packliste berechnen
+# --------------------------------------------------
 @app.post("/v1/packlist")
 async def packlist(req: PackReq):
     try:
-        s = isoparse(req.start).date(); e = isoparse(req.end).date()
+        s = isoparse(req.start).date()
+        e = isoparse(req.end).date()
         days = max(1, (e - s).days or 1)
     except Exception:
         return {"error": "Ungültiges Datum. Format YYYY-MM-DD."}
@@ -65,48 +98,67 @@ async def packlist(req: PackReq):
         wx = None
 
     if not wx:
-        bucket = "mild"; avg_tmax = None; rain = None
+        bucket = "mild"
+        avg_tmax = None
+        rain = None
         uncertainty = "Wetterdienst nicht erreichbar – generischer Bucket."
     else:
         bucket = weather_to_bucket(wx.get("summary", "mild"))
-        avg_tmax = wx.get("avg_tmax"); rain = wx.get("rain_prob")
+        avg_tmax = wx.get("avg_tmax")
+        rain = wx.get("rain_prob")
         uncertainty = wx.get("uncertainty", "—")
 
     factor = float(PROFILES.get(req.profile, 1.0))
     q = quantities(days, bucket, factor)
+
     items = [
         {"name": "Reisepass/ID", "qty": 1, "critical": True},
         {"name": "T-Shirts", "qty": q["tshirts"]},
         {"name": "Unterwäsche", "qty": q["underwear"]},
         {"name": "Socken", "qty": q["socks"]},
         {"name": "Leichte Jacke", "qty": q["jacket"]},
-        {"name": "Sonnencreme", "qty": 1}
+        {"name": "Sonnencreme", "qty": 1},
     ] + activity_items(req.activities)
 
     if avg_tmax is not None and avg_tmax <= 10:
-        items += [{"name": "Warme Jacke", "qty": 1}, {"name": "Mütze/Handschuhe", "qty": 1}]
+        items += [
+            {"name": "Warme Jacke", "qty": 1},
+            {"name": "Mütze/Handschuhe", "qty": 1},
+        ]
     if rain is not None and rain >= 0.4:
-        items += [{"name": "Regenjacke", "qty": 1}, {"name": "Regenhülle Rucksack", "qty": 1}]
+        items += [
+            {"name": "Regenjacke", "qty": 1},
+            {"name": "Regenhülle Rucksack", "qty": 1},
+        ]
 
-    return {"city": req.city, "days": days, "profile": req.profile,
-            "weather": {"bucket": bucket, "avg_tmax": avg_tmax, "rain_prob": rain},
-            "items": items, "uncertainty": uncertainty}
+    return {
+        "city": req.city,
+        "days": days,
+        "profile": req.profile,
+        "weather": {"bucket": bucket, "avg_tmax": avg_tmax, "rain_prob": rain},
+        "items": items,
+        "uncertainty": uncertainty,
+    }
 
-# ✅ STATIC FILES (UI)
-# ✅ STATIC FILES (UI)
+# --------------------------------------------------
+# 🌐 Static Files (UI)
+# --------------------------------------------------
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/chat")
 def chat_page():
     return FileResponse(os.path.join("static", "chat.html"))
 
+# --------------------------------------------------
+# 🧾 GET-Version für Packlist (Browser-Testing)
+# --------------------------------------------------
 @app.get("/v1/packlist")
 async def packlist_get(
-        city: str,
-        start: str,
-        end: str,
-        activities: str = "",
-        profile: str = "minimal",
+    city: str,
+    start: str,
+    end: str,
+    activities: str = "",
+    profile: str = "minimal",
 ):
     req = PackReq(
         city=city,

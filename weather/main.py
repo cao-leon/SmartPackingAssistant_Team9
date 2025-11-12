@@ -1,14 +1,17 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-app = FastAPI()
+app = FastAPI(title="Weather Service", version="1.0.0")
 
+# ---- MODELL ----
 class WeatherRequest(BaseModel):
     city: str
-    days: int = 3  # Default-Wert
+    days: int = 3
 
+# ---- FUNKTION ----
 def generate_weather(city: str, days: int):
-
     forecast_map = {
         "berlin": "bewölkt und kühl",
         "amsterdam": "windig und feucht",
@@ -33,20 +36,25 @@ def generate_weather(city: str, days: int):
 
     packing_list.append(f"Kleidung für {days} Tage")
 
-    return {
-        "city": city,
-        "forecast": forecast,
-        "recommendations": packing_list
-    }
+    return {"city": city, "forecast": forecast, "recommendations": packing_list}
 
 
-# POST - JSON Body
-@app.post("/weather")
+# ---- ENDPOINTS ----
+@app.get("/health")
+def health():
+    return {"ok": True, "service": "weather"}
+
+@app.post("/v1/weather")
 def weather_post(request: WeatherRequest):
     return generate_weather(request.city, request.days)
 
-
-# GET - Query Parameter (days optional)
-@app.get("/weather")
+@app.get("/v1/weather")
 def weather_get(city: str, days: int = 3):
     return generate_weather(city, days)
+
+# ---- STATIC FILES ----
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
